@@ -146,6 +146,7 @@ private let configParser: [String: any ParserProtocol<Config>] = [
     "auto-reload-config": Parser(\.autoReloadConfig, parseBool),
     "automatically-unhide-macos-hidden-apps": Parser(\.automaticallyUnhideMacosHiddenApps, parseBool),
     "accordion-padding": Parser(\.accordionPadding, parseInt),
+    "workspace-menu-window-format": Parser(\.workspaceMenuWindowFormat, parseWorkspaceMenuWindowFormat),
     persistentWorkspacesKey: Parser(\.persistentWorkspaces, parsePersistentWorkspaces),
     "exec-on-workspace-change": Parser(\.execOnWorkspaceChange, parseArrayOfStrings),
     "exec": Parser(\.execConfig, parseExecConfig),
@@ -331,6 +332,16 @@ func parseInt(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigPa
 
 func parseString(_ raw: OrderedJson, _ backtrace: ConfigBacktrace) -> ResOrConfigParseDiagnostic<String> {
     raw.asStringOrNil.toResult(expectedActualTypeDiagnostic(expected: .string, actual: raw.tomlType, backtrace))
+}
+
+private func parseWorkspaceMenuWindowFormat(
+    _ raw: OrderedJson,
+    _ backtrace: ConfigBacktrace,
+) -> ResOrConfigParseDiagnostic<[InterToken<InterVar>]> {
+    parseString(raw, backtrace).flatMap {
+        $0.interpolationTokens(interpolationChar: "%", ofInterVarType: InterVar.self)
+            .mapError { .init(backtrace, "Failed to parse window format. \($0)") }
+    }
 }
 
 func parseSimpleType<T>(_ raw: OrderedJson, ofType: T.Type) -> T? {

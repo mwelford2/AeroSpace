@@ -23,7 +23,7 @@ enum AxPermissionStatus: Equatable {
     case waitingWithPrompt
 }
 
-@MainActor func updateTrayText() {
+@MainActor func updateTrayText() async {
     let sortedMonitors = sortedMonitorInfos
     let focus = focus
     TrayMenuModel.shared.trayText = (activeMode?.takeIf { $0 != mainModeId }?.first.map { "(\($0.uppercased())) " } ?? "") +
@@ -34,24 +34,33 @@ enum AxPermissionStatus: Equatable {
             return ($0.activeWorkspace == focus.workspace && sortedMonitors.count > 1 ? "*" : "") + activeWorkspaceName
         }
         .joined(separator: " │ ")
-    TrayMenuModel.shared.workspaces = Workspace.all.map {
-        let apps = $0.allLeafWindowsRecursive.map { $0.app.name?.takeIf { !$0.isEmpty } }.filterNotNil().toSet()
+    var workspaceViewModels: [WorkspaceViewModel] = []
+    for workspace in Workspace.all {
+        var labels: [String] = []
+        for window in workspace.allLeafWindowsRecursive {
+            if let label = await formatWorkspaceMenuWindowLabel(window, config.workspaceMenuWindowFormat), !label.isEmpty {
+                labels.append(label)
+            }
+        }
         let dash = " - "
         let suffix = switch true {
-            case !apps.isEmpty: dash + apps.sorted().joinTruncating(separator: ", ", length: 25)
-            case $0.isVisible: dash + $0.workspaceMonitor.name
+            case !labels.isEmpty: dash + labels.toSet().sorted().joinTruncating(separator: ", ", length: 25)
+            case workspace.isVisible: dash + workspace.workspaceMonitor.name
             default: ""
         }
-        let hasFullscreenWindows = $0.allLeafWindowsRecursive.contains { $0.isFullscreen }
-        return WorkspaceViewModel(
-            name: $0.name,
-            suffix: suffix,
-            isFocused: focus.workspace == $0,
-            isEffectivelyEmpty: $0.isEffectivelyEmpty,
-            isVisible: $0.isVisible,
-            hasFullscreenWindows: hasFullscreenWindows,
+        let hasFullscreenWindows = workspace.allLeafWindowsRecursive.contains { $0.isFullscreen }
+        workspaceViewModels.append(
+            WorkspaceViewModel(
+                name: workspace.name,
+                suffix: suffix,
+                isFocused: focus.workspace == workspace,
+                isEffectivelyEmpty: workspace.isEffectivelyEmpty,
+                isVisible: workspace.isVisible,
+                hasFullscreenWindows: hasFullscreenWindows,
+            ),
         )
     }
+    TrayMenuModel.shared.workspaces = workspaceViewModels
     var items = sortedMonitors.map {
         let hasFullscreenWindows = $0.activeWorkspace.allLeafWindowsRecursive.contains { $0.isFullscreen }
         return TrayItem(
@@ -68,6 +77,16 @@ enum AxPermissionStatus: Equatable {
         items.insert(mode, at: 0)
     }
     TrayMenuModel.shared.trayItems = items
+}
+
+@MainActor
+func formatWorkspaceMenuWindowLabel(_ window: Window, _ format: [InterToken<InterVar>]) async -> String? {
+    guard let appName = window.app.name, !appName.isEmpty else { return nil }
+    guard let window = try? await WindowWithPrefetchedTitle.resolveWindow(window, for: format, .nonCancellable) else { return appName }
+    return switch [AeroObj.window(window)].format(format) {
+        case .success(let labels): labels.singleOrNil().orDie()
+        case .failure: appName
+    }
 }
 
 struct WorkspaceViewModel: Hashable {

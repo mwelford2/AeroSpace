@@ -220,6 +220,31 @@ final class ConfigTest: XCTestCase {
         )
     }
 
+    func testWorkspaceMenuWindowFormat() {
+        let result = parseConfig(
+            """
+            workspace-menu-window-format = '%{app-name} | %{window-title}'
+            """,
+        )
+        assertEquals(result.errors, [])
+        assertEquals(result.config.workspaceMenuWindowFormat, [
+            .interVar(.formatVar(.app(.appName))),
+            .literal(" | "),
+            .interVar(.formatVar(.window(.windowTitle))),
+        ])
+    }
+
+    func testWorkspaceMenuWindowFormatRejectsUnknownVariable() {
+        let result = parseConfig(
+            """
+            workspace-menu-window-format = '%{unknown}'
+            """,
+        )
+        assertEquals(result.errors.count, 1)
+        assertTrue(result.strErrors[0].contains("workspace-menu-window-format: Failed to parse window format"))
+        assertTrue(result.strErrors[0].contains("Can't parse 'unknown'"))
+    }
+
     func testConfigParseError() {
         assertFalse(parseConfig("true").allowReloadConfig)
         assertEquals(

@@ -26,6 +26,11 @@ enable-normalization-opposite-orientation-for-nested-containers = true
 # You can set 0 to disable the padding feature
 accordion-padding = 30
 
+# Format for window labels in the workspace list shown in the menu bar.
+# Available variables are the same as for `aerospace list-windows --format`.
+# Fallback value (if you omit the key): workspace-menu-window-format = '%{app-name}'
+workspace-menu-window-format = '%{app-name}'
+
 # Possible values: tiles|accordion
 default-root-container-layout = 'tiles'
 

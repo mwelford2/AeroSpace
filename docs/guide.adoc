@@ -443,6 +443,16 @@ When you quit the AeroSpace or when the AeroSpace detects that it's about to cra
 
 AeroSpace shows the name of currently active workspace in its tray icon (top right corner), to give users a visual feedback on what workspace is currently active.
 
+The workspace list in the tray menu shows one label for each unique formatted window value.
+By default, labels contain application names. You can include other window information, such as the window title:
+
+[source,toml]
+----
+workspace-menu-window-format = '%{app-name} | %{window-title}'
+----
+
+The available interpolation variables are the same as for xref:commands.adoc#list-windows[`list-windows --format`].
+
 The intended workflow of using AeroSpace workspaces is to only have one macOS Space (or as many monitors you have, if `Displays have separate Spaces` is enabled) and don’t interact with macOS Spaces anymore.
 
 [NOTE]
